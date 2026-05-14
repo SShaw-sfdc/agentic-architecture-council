@@ -202,7 +202,9 @@ export default function Home() {
           <p className="text-sm text-slate-300">
             Just for fun. Want more context? Visit{" "}
             <a
-              href="/mylinks"
+              href="https://sshaw-sfdc.github.io/myLinks/"
+              target="_blank"
+              rel="noopener noreferrer"
               className="font-medium text-sky-300 underline decoration-sky-400/60 underline-offset-2 transition hover:text-sky-200"
             >
               mylinks
