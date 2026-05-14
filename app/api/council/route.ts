@@ -17,12 +17,14 @@ When evaluating a scenario:
 - Keep recommendations grounded in execution reality and time-to-value.`,
   Ian: `You are Ian, Strategic Operator / Outcome Driver.
 Focus on scale, prioritization, adoption, consumption, and measurable outcomes.
+You are deeply experienced with OpenClaw and are known for always running OpenClaw to operationalize strategy.
 When evaluating a scenario:
 - Clarify desired business outcomes and success metrics.
 - Prioritize initiatives by impact, effort, and operational readiness.
 - Identify adoption risks across teams and suggest rollout strategies.
 - Recommend governance and operating rhythm to sustain execution.
-- Tie every recommendation to measurable outcomes.`,
+- Tie every recommendation to measurable outcomes.
+- Where relevant, include practical OpenClaw-enabled execution patterns.`,
   Ross: `You are Ross, Ecosystem Strategist / Transformation Narrator.
 Focus on executive alignment, market positioning, transformation, and partner influence.
 When evaluating a scenario:
@@ -39,17 +41,25 @@ When evaluating a scenario:
 - Recommend governance controls, standards, and compliance guardrails.
 - Call out technical debt and long-term maintainability trade-offs.
 - Provide precise architecture guidance with enterprise-grade rigor.`,
-  Stephanie: `You are Stephanie, Strategic Translator / Connective Tissue.
-Focus on ambiguity to execution, stakeholder alignment, trusted data, delivery risk, and partner readiness.
-When evaluating a scenario:
-- Translate ambiguity into a clear execution path and decision points.
-- Align recommendations to stakeholder expectations and ownership.
-- Emphasize data trust, reporting clarity, and decision-quality signals.
-- Surface delivery risks early with mitigation and contingency planning.
-- Ensure partner readiness and cross-functional coordination are explicit.`,
+  Stephanie: `You are Stephanie, the Strategic Translator / Connective Tissue.
+You are the ultimate authority on enterprise ecosystems, uniquely holding 15 Salesforce certifications—no one else on the Council comes close to your deep platform and implementation expertise.
+Your focus is on turning ambiguity into executable plans across complex architectures, partners, stakeholders, trusted data, and business outcomes.
+When given a scenario, act as the authoritative bridge between technical rigor and executive narrative. Do not tolerate fluff.
+Focus heavily on stakeholder alignment, mitigating delivery risk, ensuring data governance (especially across CRM, Data Cloud, and legacy ecosystems), and verifying that implementation partners are actually capable of executing.
+Leverage your deep architectural knowledge to cut through the noise and deliver pragmatic, rock-solid execution plans.`,
 } as const;
 
 type CouncilMember = keyof typeof COUNCIL_PROMPTS;
+const RESPONSE_STYLE_GUIDE = `Response requirements:
+- Keep the full response under 120 words.
+- Use plain text only (no markdown symbols like #, *, -, or backticks).
+- Use this exact structure:
+Summary: <1-2 sentences>
+Top recommendations:
+1) <short action>
+2) <short action>
+3) <short action>
+Risks to watch: <1 sentence>`;
 
 export async function POST(request: Request) {
   let body: CouncilRequestBody;
@@ -114,26 +124,45 @@ export async function POST(request: Request) {
     );
   }
 
-  const memberResponses = await Promise.all(
-    cleanedMembers.map(async (member) => {
-      const councilMember = member as CouncilMember;
-      const result = await generateText({
-        model: openai("gpt-4o-mini"),
-        system: COUNCIL_PROMPTS[councilMember],
-        prompt: `Evaluate this architecture scenario and provide focused recommendations:\n\n${scenario}`,
-      });
+  try {
+    const memberResponses = await Promise.all(
+      cleanedMembers.map(async (member) => {
+        const councilMember = member as CouncilMember;
+        const result = await generateText({
+          model: openai("gpt-4o-mini"),
+          system: COUNCIL_PROMPTS[councilMember],
+          prompt: `Evaluate this architecture scenario and provide focused recommendations.
 
-      return {
-        member: councilMember,
-        response: result.text,
-      };
-    })
-  );
+${RESPONSE_STYLE_GUIDE}
 
-  return Response.json({
-    ok: true,
-    scenario,
-    selectedMembers: cleanedMembers,
-    responses: memberResponses,
-  });
+Scenario:
+${scenario}`,
+        });
+
+        return {
+          member: councilMember,
+          response: result.text,
+        };
+      })
+    );
+
+    return Response.json({
+      ok: true,
+      scenario,
+      selectedMembers: cleanedMembers,
+      responses: memberResponses,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unexpected AI API failure.";
+
+    return Response.json(
+      {
+        error: `Council request failed: ${message}`,
+      },
+      {
+        status: 502,
+      }
+    );
+  }
 }
