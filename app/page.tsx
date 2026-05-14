@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 type CouncilMember = {
   name: string;
@@ -11,6 +12,12 @@ type CouncilMember = {
 type CouncilResponse = {
   member: string;
   response: string;
+};
+
+type CouncilApiResponse = {
+  error?: string;
+  responses?: CouncilResponse[];
+  synthesis?: string | null;
 };
 
 type MemberTheme = {
@@ -114,6 +121,7 @@ export default function Home() {
   const [scenario, setScenario] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [responses, setResponses] = useState<CouncilResponse[]>([]);
+  const [synthesis, setSynthesis] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -128,6 +136,7 @@ export default function Home() {
   const handleConsultCouncil = async () => {
     setErrorMessage("");
     setResponses([]);
+    setSynthesis(null);
 
     if (!scenario.trim()) {
       setErrorMessage("Please enter an architecture scenario before consulting.");
@@ -153,18 +162,12 @@ export default function Home() {
         }),
       });
 
-      let data: {
-        error?: string;
-        responses?: CouncilResponse[];
-      } = {};
+      let data: CouncilApiResponse = {};
 
       const rawBody = await response.text();
       if (rawBody) {
         try {
-          data = JSON.parse(rawBody) as {
-            error?: string;
-            responses?: CouncilResponse[];
-          };
+          data = JSON.parse(rawBody) as CouncilApiResponse;
         } catch {
           data = {};
         }
@@ -176,6 +179,7 @@ export default function Home() {
       }
 
       setResponses(data.responses ?? []);
+      setSynthesis(data.synthesis ?? null);
     } catch {
       setErrorMessage(
         "Unable to reach /api/council. Confirm the dev server is running and try again."
@@ -293,30 +297,44 @@ export default function Home() {
         >
           <h2 className="text-xl font-semibold text-white">Council Results</h2>
           {responses.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {responses.map((result) => (
-                (() => {
-                  const theme =
-                    memberThemeByName[result.member] ??
-                    memberThemeByName.Stephanie;
+            <div className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                {responses.map((result) => (
+                  (() => {
+                    const theme =
+                      memberThemeByName[result.member] ??
+                      memberThemeByName.Stephanie;
 
-                  return (
-                    <article
-                      key={result.member}
-                      className={`rounded-xl border border-slate-700 border-t-4 ${theme.responseTopBorder} bg-gradient-to-br ${theme.responseGradient} via-slate-900 to-slate-950 p-5 shadow-lg`}
-                    >
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${theme.responseBadge}`}
+                    return (
+                      <article
+                        key={result.member}
+                        className={`rounded-xl border border-slate-700 border-t-4 ${theme.responseTopBorder} bg-gradient-to-br ${theme.responseGradient} via-slate-900 to-slate-950 p-5 shadow-lg`}
                       >
-                        {result.member}
-                      </span>
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-200">
-                        {result.response}
-                      </p>
-                    </article>
-                  );
-                })()
-              ))}
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${theme.responseBadge}`}
+                        >
+                          {result.member}
+                        </span>
+                      <div className="prose prose-sm mt-3 max-w-none prose-headings:text-slate-100 prose-p:text-slate-200 prose-strong:text-white prose-li:text-slate-200 prose-ul:my-2 prose-ol:my-2 dark:prose-invert">
+                        <ReactMarkdown>{result.response}</ReactMarkdown>
+                      </div>
+                      </article>
+                    );
+                  })()
+                ))}
+              </div>
+              {synthesis ? (
+                <article className="rounded-2xl bg-gradient-to-r from-slate-300/30 via-slate-200/30 to-slate-300/30 p-[1px] shadow-xl">
+                  <div className="rounded-2xl bg-slate-900/95 p-6">
+                    <h3 className="text-lg font-semibold tracking-tight text-white">
+                      Strategic Alignment
+                    </h3>
+                    <div className="prose prose-sm mt-3 max-w-none prose-headings:text-white prose-p:text-slate-100 prose-strong:text-white prose-li:text-slate-100 dark:prose-invert">
+                      <ReactMarkdown>{synthesis}</ReactMarkdown>
+                    </div>
+                  </div>
+                </article>
+              ) : null}
             </div>
           ) : (
             <div className="min-h-32 rounded-lg border border-slate-800 bg-slate-950/60 p-4 text-slate-400">
