@@ -60,6 +60,8 @@ Top recommendations:
 2) <short action>
 3) <short action>
 Risks to watch: <1 sentence>`;
+const UNIVERSAL_PROMPT_INSTRUCTION =
+  "\n\nIMPORTANT: Conclude your advice with a bold heading called Impacted Personas. Underneath it, provide 2-3 bullet points identifying the specific end-users or employees who will be most impacted by your specific architectural approach, and exactly how their day-to-day will change.";
 
 export async function POST(request: Request) {
   let body: CouncilRequestBody;
@@ -136,7 +138,7 @@ export async function POST(request: Request) {
 ${RESPONSE_STYLE_GUIDE}
 
 Scenario:
-${scenario}`,
+${scenario}${UNIVERSAL_PROMPT_INSTRUCTION}`,
         });
 
         return {
@@ -146,11 +148,37 @@ ${scenario}`,
       })
     );
 
+    let synthesis: string | null = null;
+
+    if (cleanedMembers.length > 1) {
+      const combinedAdvice = memberResponses
+        .map(
+          (entry) =>
+            `${entry.member}:\n${entry.response.replace(/\s+/g, " ").trim()}`
+        )
+        .join("\n\n");
+
+      const synthesisResult = await generateText({
+        model: openai("gpt-4o-mini"),
+        system: `You are the Council Moderator, an executive synthesizing advice from a team of top-tier enterprise architects. The user submitted this scenario: ${scenario}. The council members gave the following advice: ${combinedAdvice}. Your job is to weave their perspectives into a unified, collaborative strategy. Do not frame them as opposing forces; frame them as a cross-functional team building a holistic solution. Output a punchy, Markdown-formatted summary with three sections:
+
+Shared Objectives: What is the common ground or ultimate goal they all agree on?
+
+Complementary Strengths: How does one member's focus (e.g., data governance) actively support another's (e.g., user adoption)?
+
+The Unified Path Forward: A blended recommendation on how to sequence these priorities for maximum success.`,
+        prompt: "Generate the synthesis.",
+      });
+
+      synthesis = synthesisResult.text;
+    }
+
     return Response.json({
       ok: true,
       scenario,
       selectedMembers: cleanedMembers,
       responses: memberResponses,
+      synthesis,
     });
   } catch (error) {
     const message =
