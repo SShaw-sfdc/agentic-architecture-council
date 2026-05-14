@@ -13,6 +13,17 @@ type CouncilResponse = {
   response: string;
 };
 
+type MemberTheme = {
+  accentText: string;
+  hoverBorder: string;
+  selectedBorder: string;
+  selectedBg: string;
+  selectedRing: string;
+  responseTopBorder: string;
+  responseBadge: string;
+  responseGradient: string;
+};
+
 export default function Home() {
   const councilMembers = [
     {
@@ -46,6 +57,59 @@ export default function Home() {
         "Ambiguity to execution, stakeholder alignment, trusted data, delivery risk, and partner readiness.",
     },
   ] satisfies CouncilMember[];
+  const memberThemeByName: Record<string, MemberTheme> = {
+    Hunter: {
+      accentText: "text-amber-300",
+      hoverBorder: "hover:border-amber-400/70",
+      selectedBorder: "border-amber-500/80",
+      selectedBg: "bg-amber-500/10",
+      selectedRing: "ring-amber-400/80",
+      responseTopBorder: "border-t-amber-400",
+      responseBadge: "border border-amber-400/40 bg-amber-500/20 text-amber-200",
+      responseGradient: "from-amber-950/35",
+    },
+    Ian: {
+      accentText: "text-emerald-300",
+      hoverBorder: "hover:border-emerald-400/70",
+      selectedBorder: "border-emerald-500/80",
+      selectedBg: "bg-emerald-500/10",
+      selectedRing: "ring-emerald-400/80",
+      responseTopBorder: "border-t-emerald-400",
+      responseBadge:
+        "border border-emerald-400/40 bg-emerald-500/20 text-emerald-200",
+      responseGradient: "from-emerald-950/35",
+    },
+    Ross: {
+      accentText: "text-indigo-300",
+      hoverBorder: "hover:border-indigo-400/70",
+      selectedBorder: "border-indigo-500/80",
+      selectedBg: "bg-indigo-500/10",
+      selectedRing: "ring-indigo-400/80",
+      responseTopBorder: "border-t-indigo-400",
+      responseBadge: "border border-indigo-400/40 bg-indigo-500/20 text-indigo-200",
+      responseGradient: "from-indigo-950/35",
+    },
+    Jeff: {
+      accentText: "text-slate-300",
+      hoverBorder: "hover:border-slate-400/80",
+      selectedBorder: "border-slate-400/90",
+      selectedBg: "bg-slate-500/10",
+      selectedRing: "ring-slate-300/80",
+      responseTopBorder: "border-t-slate-300",
+      responseBadge: "border border-slate-300/40 bg-slate-500/20 text-slate-200",
+      responseGradient: "from-slate-800/50",
+    },
+    Stephanie: {
+      accentText: "text-sky-300",
+      hoverBorder: "hover:border-sky-400/70",
+      selectedBorder: "border-sky-500/80",
+      selectedBg: "bg-sky-500/10",
+      selectedRing: "ring-sky-400/80",
+      responseTopBorder: "border-t-sky-400",
+      responseBadge: "border border-sky-400/40 bg-sky-500/20 text-sky-200",
+      responseGradient: "from-sky-950/40",
+    },
+  };
 
   const [scenario, setScenario] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
@@ -89,10 +153,22 @@ export default function Home() {
         }),
       });
 
-      const data = (await response.json()) as {
+      let data: {
         error?: string;
         responses?: CouncilResponse[];
-      };
+      } = {};
+
+      const rawBody = await response.text();
+      if (rawBody) {
+        try {
+          data = JSON.parse(rawBody) as {
+            error?: string;
+            responses?: CouncilResponse[];
+          };
+        } catch {
+          data = {};
+        }
+      }
 
       if (!response.ok) {
         setErrorMessage(data.error ?? "Unable to consult the council right now.");
@@ -101,7 +177,9 @@ export default function Home() {
 
       setResponses(data.responses ?? []);
     } catch {
-      setErrorMessage("Network error while consulting the council.");
+      setErrorMessage(
+        "Unable to reach /api/council. Confirm the dev server is running and try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -117,6 +195,16 @@ export default function Home() {
           <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
             Consult Your Architecture Council
           </h1>
+          <p className="text-sm text-slate-300">
+            Just for fun. Want more context? Visit{" "}
+            <a
+              href="/mylinks"
+              className="font-medium text-sky-300 underline decoration-sky-400/60 underline-offset-2 transition hover:text-sky-200"
+            >
+              mylinks
+            </a>
+            .
+          </p>
         </header>
 
         <form className="space-y-10" onSubmit={(event) => event.preventDefault()}>
@@ -143,33 +231,46 @@ export default function Home() {
               Select Council Members
             </legend>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {councilMembers.map((member) => (
-                <label
-                  key={member.name}
-                  className="group relative cursor-pointer rounded-xl border border-slate-700 bg-slate-950/80 p-4 transition hover:border-sky-400"
-                >
-                  <input
-                    type="checkbox"
-                    name="councilMembers"
-                    value={member.name}
-                    checked={selectedMembers.includes(member.name)}
-                    onChange={() => toggleMemberSelection(member.name)}
-                    className="peer sr-only"
-                  />
-                  <div className="absolute inset-0 rounded-xl ring-2 ring-transparent transition peer-checked:ring-sky-400 peer-focus-visible:ring-sky-300" />
-                  <div className="relative space-y-2">
-                    <h2 className="text-xl font-semibold text-white">
-                      {member.name}
-                    </h2>
-                    <p className="text-sm font-medium text-sky-300">
-                      {member.subtitle}
-                    </p>
-                    <p className="text-sm leading-6 text-slate-300">
-                      {member.description}
-                    </p>
-                  </div>
-                </label>
-              ))}
+              {councilMembers.map((member) => {
+                const isSelected = selectedMembers.includes(member.name);
+                const theme = memberThemeByName[member.name];
+
+                return (
+                  <label
+                    key={member.name}
+                    className={`group relative cursor-pointer rounded-xl border bg-slate-950/80 p-4 transition ${theme.hoverBorder} ${
+                      isSelected
+                        ? `${theme.selectedBorder} ${theme.selectedBg}`
+                        : "border-slate-700"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="councilMembers"
+                      value={member.name}
+                      checked={isSelected}
+                      onChange={() => toggleMemberSelection(member.name)}
+                      className="peer sr-only"
+                    />
+                    <div
+                      className={`absolute inset-0 rounded-xl ring-2 transition ${
+                        isSelected ? theme.selectedRing : "ring-transparent"
+                      } peer-focus-visible:ring-slate-300`}
+                    />
+                    <div className="relative space-y-2">
+                      <h2 className="text-xl font-semibold text-white">
+                        {member.name}
+                      </h2>
+                      <p className={`text-sm font-medium ${theme.accentText}`}>
+                        {member.subtitle}
+                      </p>
+                      <p className="text-sm leading-6 text-slate-300">
+                        {member.description}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </fieldset>
 
@@ -194,17 +295,27 @@ export default function Home() {
           {responses.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
               {responses.map((result) => (
-                <article
-                  key={result.member}
-                  className="rounded-xl border border-sky-400/20 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/30 p-5 shadow-lg"
-                >
-                  <h3 className="text-lg font-semibold text-sky-300">
-                    {result.member}
-                  </h3>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-200">
-                    {result.response}
-                  </p>
-                </article>
+                (() => {
+                  const theme =
+                    memberThemeByName[result.member] ??
+                    memberThemeByName.Stephanie;
+
+                  return (
+                    <article
+                      key={result.member}
+                      className={`rounded-xl border border-slate-700 border-t-4 ${theme.responseTopBorder} bg-gradient-to-br ${theme.responseGradient} via-slate-900 to-slate-950 p-5 shadow-lg`}
+                    >
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${theme.responseBadge}`}
+                      >
+                        {result.member}
+                      </span>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+                        {result.response}
+                      </p>
+                    </article>
+                  );
+                })()
               ))}
             </div>
           ) : (
